@@ -16,94 +16,95 @@ extern void bson_to_lua(lua_State *L, const bson *obj);
 /******
  * **/
 
-static void json_to_bson_append_element( bson *bb , const char *k , struct json_object *v );
-
-static void
-json_to_bson_append( bson *bb , struct json_object *o ) {
-	char *key; struct json_object *val;
-	struct lh_entry *entry = NULL;
-	for (entry = json_object_get_object(o)->head; entry; entry = entry->next) {
-		if (entry) {
-			key = (char*) entry->k;
-			val = (struct json_object*) entry->v;
-			json_to_bson_append_element( bb , key , val );
-		}
-	}
-}
+//static void json_to_bson_append_element( bson *bb , const char *k , struct json_object *v );
+//
+//static void
+//json_to_bson_append( bson *bb , struct json_object *o ) {
+//	char *key; struct json_object *val;
+//	struct lh_entry *entry = NULL;
+//	for (entry = json_object_get_object(o)->head; entry; entry = entry->next) {
+//		if (entry) {
+//			key = (char*) entry->k;
+//			val = (struct json_object*) entry->v;
+//			json_to_bson_append_element( bb , key , val );
+//		}
+//	}
+//}
 
 /**
    should already have called start_array
    this will not call start/finish
  */
 
-static void
-json_to_bson_append_array( bson *bb , struct json_object *a ) {
-    int i;
-    char buf[10];
-    for ( i=0; i<json_object_array_length( a ); i++ ) {
-        sprintf( buf , "%d" , i );
-        json_to_bson_append_element( bb , buf , json_object_array_get_idx( a , i ) );
-    }
-}
+//static void
+//json_to_bson_append_array( bson *bb , struct json_object *a ) {
+//    int i;
+//    char buf[10];
+//    for ( i=0; i<json_object_array_length( a ); i++ ) {
+//        sprintf( buf , "%d" , i );
+//        json_to_bson_append_element( bb , buf , json_object_array_get_idx( a , i ) );
+//    }
+//}
 
-static void
-json_to_bson_append_element( bson *bb , const char *k , struct json_object *v ) {
-    if ( ! v ) {
-        bson_append_null( bb , k );
-        return;
-    }
+//static void
+//json_to_bson_append_element( bson *bb , const char *k , struct json_object *v ) {
+//    if ( ! v ) {
+//        bson_append_null( bb , k );
+//        return;
+//    }
+//
+//    switch ( json_object_get_type( v ) ) {
+//    case json_type_int:
+//        bson_append_int( bb , k , json_object_get_int( v ) );
+//        break;
+//    case json_type_boolean:
+//        bson_append_bool( bb , k , json_object_get_boolean( v ) );
+//        break;
+//    case json_type_double:
+//        bson_append_double( bb , k , json_object_get_double( v ) );
+//        break;
+//    case json_type_string:
+//        bson_append_string( bb , k , json_object_get_string( v ) );
+//        break;
+//    case json_type_object:
+//        break;
+//    case json_type_array:
+//        break;
+//    default:
+//         break;
+//    }
+//}
 
-    switch ( json_object_get_type( v ) ) {
-    case json_type_int:
-        bson_append_int( bb , k , json_object_get_int( v ) );
-        break;
-    case json_type_boolean:
-        bson_append_bool( bb , k , json_object_get_boolean( v ) );
-        break;
-    case json_type_double:
-        bson_append_double( bb , k , json_object_get_double( v ) );
-        break;
-    case json_type_string:
-        bson_append_string( bb , k , json_object_get_string( v ) );
-        break;
-    case json_type_object:
-        break;
-    case json_type_array:
-        break;
-    default:
-         break;
-    }
-}
-
-static int
-json_to_bson( const char* jsonstring, bson *bb ) {
-    struct json_object *o = json_tokener_parse(jsonstring);
-
-    if ( is_error( o ) ) {
-        return 2;
-    }
-
-    if ( !json_object_is_type( o , json_type_object ) ) {
-        return 2;
-    }
-
-    json_to_bson_append( bb , o );
-    return 0;
-}
+//static int
+//json_to_bson( const char* jsonstring, bson *bb ) {
+//    struct json_object *o = json_tokener_parse(jsonstring);
+//
+//    if ( is_error( o ) ) {
+//        return 2;
+//    }
+//
+//    if ( !json_object_is_type( o , json_type_object ) ) {
+//        return 2;
+//    }
+//
+//    json_to_bson_append( bb , o );
+//    return 0;
+//}
 /****
  *
  * *****/
 static int
 _frombson(struct QueryCursor* self, lua_State *L, int stack_pos){
-	return 2;
+	return fromtable_with_lua(L, stack_pos, self->condition);
 }
 
 static int
-_fromjson(struct QueryCursor* self, const char *jsonstring) {
-	int ret = json_to_bson(jsonstring, self->condition);
-	bson_finish(self->condition);
-	bson_print(self->condition);
-	return ret;
+_fromjson(struct QueryCursor* self, lua_State *L, int stack_pos) {
+//	int ret = json_to_bson(jsonstring, self->condition);
+//	bson_finish(self->condition);
+//	bson_print(self->condition);
+//	return ret;
+	return fromjson_with_lua(L, stack_pos, self->condition);
 }
 
 static void
@@ -141,8 +142,6 @@ int
 cursor_create(lua_State *L, mongo *connection, const char *ns,
                   const Query *query, int nToReturn, int nToSkip,
                   const QueryCursor *fieldsToReturn, int queryOptions, int batchSize) {
-
-	printf("[%s %d]namespace is: %s, nToRetur:%d nToSkip:%d queryOptions:%d\n", __FILE__, __LINE__, ns, nToSkip, nToReturn, queryOptions);
 	MongoCursor **cursor = (MongoCursor **) lua_newuserdata(L, sizeof(MongoCursor *));
 	*cursor = (MongoCursor *)malloc(sizeof(MongoCursor));
 
@@ -150,20 +149,24 @@ cursor_create(lua_State *L, mongo *connection, const char *ns,
 
 
 //	mongo_cursor_set_options(*cursor, queryOptions);
-	mongo_cursor_set_skip( &(*cursor)->cursor, nToSkip );
-	mongo_cursor_set_limit( &(*cursor)->cursor, nToReturn );
+//	mongo_cursor_set_skip( &(*cursor)->cursor, nToSkip );
+//	mongo_cursor_set_limit( &(*cursor)->cursor, nToReturn );
 
-	bson_copy( &(*cursor)->fields, fieldsToReturn->condition);
+	bson_copy(&(*cursor)->fields, fieldsToReturn->condition);
 	// mongo_cursor_set_fields( (*cursor)->cursor, fieldsToReturn->condition );
 
-	bson_copy( &(*cursor)->query, query->condition);
-	// mongo_cursor_set_query( (*cursor)->cursor, (*cursor)->query );
+	bson_copy(&(*cursor)->query, query->condition);
+	mongo_cursor_set_query( &(*cursor)->cursor, &(*cursor)->query );
 //
+//	while(mongo_cursor_next(&(*cursor)->cursor) == MONGO_OK) {
+//	        printf("iterator1: \t");
+//	        bson_print(&((*cursor)->cursor.current));
+//	  }
 
 	luaL_getmetatable(L, LUAMONGO_CURSOR);
 	lua_setmetatable(L, -2);
 
-	return 0;
+	return 1;
 }
 
 /*
@@ -185,15 +188,33 @@ cursor_next(lua_State *L) {
 static int
 result_iterator(lua_State *L) {
     MongoCursor *cursor = userdata_to_cursor(L, lua_upvalueindex(1));
-    mongo_cursor_set_fields(&cursor->cursor, &cursor->fields);
-    mongo_cursor_set_query(&cursor->cursor, &cursor->query);
+    // mongo_cursor_set_fields(&cursor->cursor, &cursor->fields);
+    // 为了配合接口，根本就不能这样使用
+    // mongo_cursor_set_query(&cursor->cursor, &cursor->query);
 
-    bool has_more = true;
-    while (MONGO_OK == mongo_cursor_next(&(cursor->cursor))) {
-    	has_more = false;
-		bson_to_lua(L, &(cursor->cursor).current);
-	}
-    if (has_more) lua_pushnil(L);
+//    bool has_more = true;  char key[64] = {'\0'};
+//    lua_newtable(L); // root {}
+//    long index = 0, n = 1;
+//    while (MONGO_OK == mongo_cursor_next(&(cursor->cursor))) {
+//    	if (has_more) has_more = false;
+//    	// printf("$_$---\n");bson_print(&(cursor->cursor).current); printf("------^-^------\n");
+//    	// sprintf(key, "%l", index);
+//    	// ltoa(index, &key[1], 10);printf("[%s %d]%s\n", __FILE__, __LINE__, key);
+//    	// lua_pushstring(L, key);
+//
+//    	// bson_print(&(cursor->cursor).current);
+//    	printf("[%s %d]%d\n", __FILE__, __LINE__, index);
+//		bson_to_lua(L, &(cursor->cursor).current); // equal to push the value
+//		lua_rawseti(L, -2, n++);
+//		index++;
+//	}
+//    if (has_more) lua_pushnil(L);
+
+    if (MONGO_OK == mongo_cursor_next(&(cursor->cursor))) {
+    	bson_to_lua(L, &(cursor->cursor).current);
+    } else {
+    	lua_pushnil(L);
+    }
 
     return 1;
 }

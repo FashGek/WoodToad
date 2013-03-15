@@ -98,5 +98,8 @@
 
 int luaL_typerror(lua_State *L, int narg, const char *tname);
 int fromjson(const char* jsonstr, bson *out);
+int fromjson_with_lua(lua_State *L, int stack_pos, bson *bb);
+int fromtable_with_lua(lua_State *L, int stack_pos, bson *bb);
+void bson_to_lua(lua_State *L, const bson *obj);
 
 #endif // __UTILS_H_

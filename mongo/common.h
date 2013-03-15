@@ -16,7 +16,7 @@
 #define LUAMONGO_ERR_GRIDFSCHUNK_FAILED "GridFSChunk failed: %s"
 #define LUAMONGO_ERR_QUERY_FAILED       "Query failed: %s"
 #define LUAMONGO_ERR_FIND_ONE_FAILED    "Find One failed: %s"
-#define LUAMONGO_ERR_INSERT_FAILED      "Insert failed: %s"
+#define LUAMONGO_ERR_INSERT_FAILED      "Insert failed: %s(ErrorCode:%d)"
 #define LUAMONGO_ERR_CONNECT_FAILED     "Connection to %s failed: %s"
 #define LUAMONGO_ERR_COUNT_FAILED       "Count failed: %s"
 #define LUAMONGO_ERR_REMOVE_FAILED      "Remove failed: %s"
@@ -28,6 +28,7 @@
 #define LUAMONGO_REQUIRES_QUERY         LUAMONGO_QUERY ", JSON string or Lua table required"
 #define LUAMONGO_NOT_IMPLEMENTED        "Not implemented: %s.%s"
 #define LUAMONGO_ERR_CALLING            "Error calling %s.%s: %s"
+#define LUAMONGO_REQUIRES_CURSOR        LUAMONGO_CURSOR ", JSON string or Lua table required"
 
 #define BEGIN_EXTERN_C
 #define END_EXTERN_C

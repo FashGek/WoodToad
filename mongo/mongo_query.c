@@ -47,97 +47,79 @@
  * json util json string to bson
  */
 
-static void json_to_bson_append_element( bson *bb , const char *k , struct json_object *v );
-
-static void
-json_to_bson_append( bson *bb , struct json_object *o ) {
-	char *key; struct json_object *val;
-	struct lh_entry *entry = NULL;
-	for (entry = json_object_get_object(o)->head; entry; entry = entry->next) {
-		if (entry) {
-			key = (char*) entry->k;
-			val = (struct json_object*) entry->v;
-			json_to_bson_append_element( bb , key , val );
-		}
-	}
+//static void json_to_bson_append_element( bson *bb , const char *k , struct json_object *v );
+//
+//static void
+//json_to_bson_append( bson *bb , struct json_object *o ) {
+//	char *key; struct json_object *val;
+//	struct lh_entry *entry = NULL;
+//	for (entry = json_object_get_object(o)->head; entry; entry = entry->next) {
+//		if (entry) {
+//			key = (char*) entry->k;
+//			val = (struct json_object*) entry->v;
+//			json_to_bson_append_element( bb , key , val );
+//		}
+//	}
 
 //		json_object_object_foreach( o,k,v ) {
 //        json_to_bson_append_element( bb , k , v );
 //    }
-}
+//}
 
 /**
    should already have called start_array
    this will not call start/finish
  */
 
-static void
-json_to_bson_append_array( bson *bb , struct json_object *a ) {
-    int i;
-    char buf[10];
-    for ( i=0; i<json_object_array_length( a ); i++ ) {
-        sprintf( buf , "%d" , i );
-        json_to_bson_append_element( bb , buf , json_object_array_get_idx( a , i ) );
-    }
-}
+//static void
+//json_to_bson_append_array( bson *bb , struct json_object *a ) {
+//    int i;
+//    char buf[10];
+//    for ( i=0; i<json_object_array_length( a ); i++ ) {
+//        sprintf( buf , "%d" , i );
+//        json_to_bson_append_element( bb , buf , json_object_array_get_idx( a , i ) );
+//    }
+//}
 
-static void
-json_to_bson_append_element( bson *bb , const char *k , struct json_object *v ) {
-    if ( ! v ) {
-        bson_append_null( bb , k );
-        return;
-    }
+//static void
+//json_to_bson_append_element( bson *bb , const char *k , struct json_object *v ) {
+//    if ( ! v ) {
+//        bson_append_null( bb , k );
+//        return;
+//    }
+//
+//    switch ( json_object_get_type( v ) ) {
+//    case json_type_int:
+//        bson_append_int( bb , k , json_object_get_int( v ) );
+//        break;
+//    case json_type_boolean:
+//        bson_append_bool( bb , k , json_object_get_boolean( v ) );
+//        break;
+//    case json_type_double:
+//        bson_append_double( bb , k , json_object_get_double( v ) );
+//        break;
+//    case json_type_string:
+//        bson_append_string( bb , k , json_object_get_string( v ) );
+//        break;
+//    case json_type_object:
+//        bson_append_start_object( bb , k );
+//        json_to_bson_append( bb , v );
+//        bson_append_finish_object( bb );
+//        break;
+//    case json_type_array:
+//        bson_append_start_array( bb , k );
+//        json_to_bson_append_array( bb , v );
+//        bson_append_finish_object( bb );
+//        break;
+//    default:
+//         fprintf( stderr , "can't handle type for : %s\n" , json_object_to_json_string( v ) );
+//         break;
+//    }
+//
+//}
 
-    switch ( json_object_get_type( v ) ) {
-    case json_type_int:
-        bson_append_int( bb , k , json_object_get_int( v ) );
-        break;
-    case json_type_boolean:
-        bson_append_bool( bb , k , json_object_get_boolean( v ) );
-        break;
-    case json_type_double:
-        bson_append_double( bb , k , json_object_get_double( v ) );
-        break;
-    case json_type_string:
-        bson_append_string( bb , k , json_object_get_string( v ) );
-        break;
-    case json_type_object:
-        bson_append_start_object( bb , k );
-        json_to_bson_append( bb , v );
-        bson_append_finish_object( bb );
-        break;
-    case json_type_array:
-        bson_append_start_array( bb , k );
-        json_to_bson_append_array( bb , v );
-        bson_append_finish_object( bb );
-        break;
-    default:
-         fprintf( stderr , "can't handle type for : %s\n" , json_object_to_json_string( v ) );
-         break;
-    }
-
-}
 
 
-static int
-json_to_bson( lua_State *L, int stack_pos, bson *bb ) {
-    struct json_object *o = json_tokener_parse(luaL_checkstring(L, stack_pos));
-
-    if ( is_error( o ) ) {
-        luaL_typerror(L, stack_pos, "Error Parsing Json");
-        return 2;
-    }
-
-    if ( !json_object_is_type( o , json_type_object ) ) {
-    	luaL_typerror(L, stack_pos, "json_to_bson needs a JSON object, not type");
-        return 2;
-    }
-
-    json_to_bson_append( bb , o );
-    bson_finish(bb);
-
-    return 0;
-}
 
 /*
  * end
@@ -331,13 +313,12 @@ json_to_bson( lua_State *L, int stack_pos, bson *bb ) {
 
 static int
 _fromjson(Query* self, lua_State *L, int stack_pos) {
-	return json_to_bson(L, stack_pos, self->condition);
+	return fromjson_with_lua(L, stack_pos, self->condition);
 }
 
 static int
 _frombson(Query* self, lua_State *L, int stack_pos) {
-	// return lua_to_bson(L, stack_pos, self->condition);
-	return 0;
+	return fromtable_with_lua(L, stack_pos, self->condition);
 }
 
 static void

@@ -8,7 +8,7 @@
 
 typedef struct QueryCursor {
 	bson *condition;
-	int (*fromjson)(struct QueryCursor* self, const char *jsonsring);
+	int (*fromjson)(struct QueryCursor* self, lua_State *L, int stack_pos);
 	int (*frombson)(struct QueryCursor* self, lua_State *L, int stack_pos);
 	void (*release)(struct QueryCursor* self);
 }QueryCursor;

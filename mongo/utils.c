@@ -36,16 +36,14 @@ bson_to_table(lua_State *L, const bson *obj) {
 	bson_iterator it;
 	bson_iterator_init( &it, obj);
 
-    lua_newtable(L);
-
-    while ( bson_iterator_next(&it) ) {
+	lua_newtable(L); // new {}
+    while (bson_iterator_next(&it)) {
     	const char *key = bson_iterator_key(&it);
 
     	lua_pushstring(L, key);
     	lua_push_value(L, &it);
     	lua_rawset(L, -3);
     }
-
 }
 
 void
@@ -459,8 +457,133 @@ json_to_bson( const char* jsonstring, bson *bb ) {
     return 0;
 }
 
+static int
+json_to_bson_with_lua( lua_State *L, int stack_pos, bson *bb ) {
+    struct json_object *o = json_tokener_parse(luaL_checkstring(L, stack_pos));
+
+    if ( is_error( o ) ) {
+        luaL_typerror(L, stack_pos, "Error Parsing Json");
+        return 2;
+    }
+
+    if ( !json_object_is_type( o , json_type_object ) ) {
+    	luaL_typerror(L, stack_pos, "json_to_bson needs a JSON object, not type");
+        return 2;
+    }
+
+    json_to_bson_append( bb , o );
+    bson_finish(bb);
+
+    return 0;
+}
+
+static int table_to_bson_append_element(lua_State *L, bson *bb);
+
+static int
+table_to_bson_append_table(lua_State *L, bson *bb) {
+	int table_index = lua_gettop(L);
+	lua_pushnil(L); // nil on the top of stack as the void key
+	while (0 != lua_next(L, table_index)) {
+		// value = stack(-1)
+		// key = stack(-2)
+		table_to_bson_append_element(L, bb);
+
+		// for the next loop
+		lua_pop(L, 1);
+	}
+	return 0;
+}
+
+static int
+table_to_bson_append_element_imp(lua_State *L, bson *bb, const char *key, int index) {
+	int value_type = lua_type(L, index);
+	lua_Number k; lua_Integer x;
+	switch (value_type) {
+	case LUA_TNIL:
+		break;
+	case LUA_TNUMBER:
+		k = lua_tonumber(L, index);
+		x = lua_tointeger(L, index);
+		if ((lua_Number)x == k) {
+			// write a integer
+			bson_append_long(bb , key , lua_tointeger(L, index));
+		} else {
+			bson_append_double(bb , key , lua_tonumber(L, index));
+		}
+		break;
+	case LUA_TBOOLEAN:
+		bson_append_bool(bb , key , lua_toboolean(L, index));
+		break;
+	case LUA_TSTRING:
+		bson_append_string(bb , key , lua_tostring(L, index));
+		break;
+	case LUA_TTABLE:
+		bson_append_start_object(bb , key);
+		table_to_bson_append_table(L, bb);
+		bson_append_finish_object(bb);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int
+table_to_bson_append_element(lua_State *L, bson *bb) {
+	int key_type = lua_type(L, -2);
+	char key[128] = {0};
+
+	if (LUA_TSTRING == key_type) {
+		table_to_bson_append_element_imp(L, bb, lua_tostring(L, -2), -1);
+	} else if (LUA_TNUMBER == key_type) {
+		sprintf(key, "%d", (int) lua_tointeger(L, -2));
+		table_to_bson_append_element_imp(L, bb, key, -1);
+	} else {
+		luaL_typerror(L, -2, "Error Only Support Integer or String As Key");
+	}
+
+	return 0;
+}
+
+static int
+table_to_bson_append(lua_State *L, int stack_pos, bson *bb) {
+	// int table_index = lua_gettop(L);
+	lua_pushnil(L); // nil on the top of stack as the void key
+	while (0 != lua_next(L, stack_pos)) {
+		// value = stack(-1)
+		// key = stack(-2)
+		table_to_bson_append_element(L, bb);
+
+		// for the next loop
+		lua_pop(L, 1);
+	}
+	return 0;
+}
+
+static int
+table_to_bson_with_lua(lua_State *L, int stack_pos, bson *bb) {
+	int stack_top_type = lua_type(L, stack_pos);
+	if (LUA_TTABLE != stack_top_type) {
+		luaL_typerror(L, 1, "table_to_json needs a lua table, not type");
+		return 2;
+	}
+
+	return table_to_bson_append(L, stack_pos, bb);
+}
+
 int fromjson(const char* jsonstr, bson *out) {
 	int ret = json_to_bson(jsonstr, out);
 	bson_finish(out);
 	return ret;
 }
+
+int fromjson_with_lua(lua_State *L, int stack_pos, bson *bb) {
+	return json_to_bson_with_lua(L, stack_pos, bb);
+}
+
+int fromtable_with_lua(lua_State *L, int stack_pos, bson *bb) {
+	int ret = table_to_bson_with_lua(L, stack_pos, bb);
+	bson_finish(bb);
+	return ret;
+}
+
